@@ -1,5 +1,4 @@
-﻿#region using
-using iTextSharp.text;
+﻿using iTextSharp.text;
 using iTextSharp.text.pdf;
 using System;
 using System.Collections.Generic;
@@ -12,39 +11,31 @@ using System.Net.Mime;
 using System.Threading.Tasks;
 using System.Web.Http;
 using System.Web.Http.Cors;
-using System.Web.Script.Serialization; 
-#endregion
+using System.Web.Script.Serialization;
 
 namespace Attendance.Controllers
 {
     public class AttendanceController : ApiController
     {
-        #region Attributes
         [Route("get-all")]
         [EnableCors(origins: "http://localhost:3000", headers: "*", methods: "*")]
-        [HttpPost] 
-        #endregion
+        [HttpPost]
         public async Task<HttpResponseMessage> GetAllAsync(RequestModel request)
         {
-            #region Input data
             var fromDate = request.startDate.StartofDay();
             var fromDateString = fromDate.ToString("MM/dd/yyyy");
             var toDate = request.endDate.StartofDay();
             var toDateString = toDate.ToString("MM/dd/yyyy");
             var days = ((toDate - fromDate).Days + 1);
-            #endregion
 
-            #region Calling external API for attendance data
             var client = new HttpClient();
             var clientResponse = await client.GetAsync(
-                "http://192.168.2.180:4373/api/sgTimeCard/Timecard?iEmpId=&dtFrom="+ fromDateString + "&dtTo=" + toDateString);
+                "http://192.168.2.180:4373/api/sgTimeCard/Timecard?iEmpId=&dtFrom=" + fromDateString + "&dtTo=" + toDateString);
             clientResponse.EnsureSuccessStatusCode();
             var result = await clientResponse.Content.ReadAsStringAsync();
             var serializer = new JavaScriptSerializer();
             var attendanceModel = serializer.Deserialize<AttendanceModel>(result);
-            #endregion
 
-            #region Structuring the attendance data
             var groupedEmployeeData = (from item in attendanceModel.sResult
                                        where string.IsNullOrEmpty(request.name) ? true : item.empName.Contains(request.name)
                                        group item by item.empName into groupedItem
@@ -58,9 +49,7 @@ namespace Attendance.Controllers
                                                Attendance = string.IsNullOrEmpty(x.DayType) ? "P" : x.DayType
                                            }).ToList()
                                        }).ToList();
-            #endregion
 
-            #region Creating PDF
             var stream = new MemoryStream();
             Document document = new Document(PageSize.A4, 1, 1, 1, 1);
             PdfWriter writer = PdfWriter.GetInstance(document, stream);
@@ -68,9 +57,7 @@ namespace Attendance.Controllers
 
             document.SetPageSize(PageSize.A4.Rotate());
             document.Open();
-            #endregion
 
-            #region Filling in PDF
             var table = new PdfPTable(days + 1);
             var cell = new PdfPCell(("AttendanceReport").AttendanceFont())
             {
@@ -109,10 +96,8 @@ namespace Attendance.Controllers
                         startDate2 = startDate2.AddDays(1);
                     }
                 }
-            } 
-            #endregion
+            }
 
-            #region Closing PDF
             document.Add(table);
             document.Close();
             writer.Close();
@@ -128,11 +113,9 @@ namespace Attendance.Controllers
                 FileName = "Attendance.pdf"
             };
             response.Content.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Pdf);
-            return response; 
-            #endregion
+            return response;
         }
-
-        #region Models
+        
         public class AttendanceModel
         {
             public int iStatusCode { get; set; }
@@ -150,7 +133,7 @@ namespace Attendance.Controllers
             public string TimeDuration { get; set; }
             public string wrkDuration { get; set; }
             public string DayType { get; set; }
-        } 
+        }
 
         public class InTimeAttendanceModel
         {
@@ -164,10 +147,8 @@ namespace Attendance.Controllers
             public DateTime endDate { get; set; }
             public string name { get; set; }
         }
-        #endregion
     }
-
-    #region Helper
+    
     public static class Helper
     {
         public static Phrase AttendanceFont(this string text)
@@ -179,6 +160,5 @@ namespace Attendance.Controllers
         {
             return new DateTime(date.Year, date.Month, date.Day);
         }
-    } 
-    #endregion
+    }
 }
