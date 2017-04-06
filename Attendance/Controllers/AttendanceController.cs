@@ -12,7 +12,6 @@ using System.Threading.Tasks;
 using System.Web.Http;
 using System.Web.Http.Cors;
 using System.Web.Script.Serialization;
-using static Attendance.Controllers.AttendanceController;
 
 namespace Attendance.Controllers
 {
@@ -131,8 +130,8 @@ namespace Attendance.Controllers
             document.Add(table);
             document.Close();
             writer.Close();
-            byte[] bytes = stream.ToArray();
-            HttpContent metaDataContent = new ByteArrayContent(bytes);
+            var bytes = stream.ToArray();
+            var metaDataContent = new ByteArrayContent(bytes);
 
             var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
