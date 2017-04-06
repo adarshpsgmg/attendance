@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using System.Web.Http;
 using System.Web.Http.Cors;
 using System.Web.Script.Serialization;
+using static Attendance.Controllers.AttendanceController;
 
 namespace Attendance.Controllers
 {
@@ -28,6 +29,7 @@ namespace Attendance.Controllers
             var toDateString = toDate.ToString("MM/dd/yyyy");
             var days = ((toDate - fromDate).Days + 1);
 
+            #region Calling API and fetching data
             var client = new HttpClient();
             var clientResponse = await client.GetAsync(
                 "http://192.168.2.180:4373/api/sgTimeCard/Timecard?iEmpId=&dtFrom=" + fromDateString + "&dtTo=" + toDateString);
@@ -35,7 +37,25 @@ namespace Attendance.Controllers
             var result = await clientResponse.Content.ReadAsStringAsync();
             var serializer = new JavaScriptSerializer();
             var attendanceModel = serializer.Deserialize<AttendanceModel>(result);
+            #endregion
 
+            #region Tester
+            //var a = new DateTime();
+            //foreach(var item in attendanceModel.sResult)
+            //{
+            //    try
+            //    {
+            //        a = DateTime.Parse(item.InTime);
+            //        a = DateTime.Parse(item.OutTime);
+            //    }
+            //    catch(Exception ex)
+            //    {
+
+            //    }
+            //} 
+            #endregion
+
+            #region Structuring data
             var groupedEmployeeData = (from item in attendanceModel.sResult
                                        where string.IsNullOrEmpty(request.name) ? true : item.empName.Contains(request.name)
                                        group item by item.empName into groupedItem
@@ -46,58 +66,68 @@ namespace Attendance.Controllers
                                            EmployeeAttendance = groupedItem.Select(x => new InTimeAttendanceModel
                                            {
                                                InTime = DateTime.Parse(x.InTime),
+                                               OutTime = x.OutTime == "--" ? DateTime.MinValue : DateTime.Parse(x.OutTime),
                                                Attendance = string.IsNullOrEmpty(x.DayType) ? "P" : x.DayType
                                            }).ToList()
                                        }).ToList();
+            #endregion
 
+            #region Creating write stream and document
             var stream = new MemoryStream();
-            Document document = new Document(PageSize.A4, 1, 1, 1, 1);
-            PdfWriter writer = PdfWriter.GetInstance(document, stream);
+            var document = new Document(PageSize.A4, 10f, 10f, 10f, 10f);
+            var writer = PdfWriter.GetInstance(document, stream);
             writer.CloseStream = false;
 
             document.SetPageSize(PageSize.A4.Rotate());
             document.Open();
+            #endregion
 
             var table = new PdfPTable(days + 1);
-            var cell = new PdfPCell(("AttendanceReport").AttendanceFont())
-            {
-                Colspan = days + 1
-            };
-            table.AddCell(cell);
 
-            var startDate2 = fromDate;
+            table.AddCell(new AttendanceHeaderCell("AttendanceReport\n", days + 1));
+
+            var loopStartDate = fromDate;
             for (int i = 0; i < days + 1; i++)
             {
                 if (i == 0)
-                    table.AddCell(("Employee Name").AttendanceFont());
+                    table.AddCell(new AttendanceCell("Employee Name"));
                 else
                 {
-                    table.AddCell((startDate2.ToString("MM/dd/yyyy")).AttendanceFont());
-                    startDate2 = startDate2.AddDays(1);
+                    table.AddCell(new AttendanceCell(loopStartDate.ToString("MM/dd/yyyy")));
+                    loopStartDate = loopStartDate.AddDays(1);
                 }
             }
 
             foreach (var employee in groupedEmployeeData)
             {
-                startDate2 = fromDate;
+                loopStartDate = fromDate;
                 for (int i = 0; i < days + 1; i++)
                 {
                     if (i == 0)
-                        table.AddCell(employee.EmployeeName.AttendanceFont());
-                    else if (employee.EmployeeAttendance.Any(x => x.InTime.StartofDay() == startDate2))
                     {
-                        var dayType = employee.EmployeeAttendance.FirstOrDefault(x => x.InTime.StartofDay() == startDate2).Attendance;
-                        table.AddCell(dayType.AttendanceFont());
-                        startDate2 = startDate2.AddDays(1);
+                        table.AddCell(new AttendanceCell(employee.EmployeeName));
+                    }
+                    else if (employee.EmployeeAttendance.Any(x => x.InTime.StartofDay() == loopStartDate))
+                    {
+                        var tEmployee = employee.EmployeeAttendance.FirstOrDefault(x => x.InTime.StartofDay() == loopStartDate);
+                        table.AddCell(new AttendanceCell(
+                            (
+                            (tEmployee.OutTime == DateTime.MinValue ? " Missed" : tEmployee.Attendance)
+                            + " \n" + tEmployee.InTime.ToString("HH:mm tt")
+                            + " -" + (tEmployee.OutTime == DateTime.MinValue ? " Missed" : tEmployee.OutTime.ToString("HH:mm tt"))
+                            )
+                        ));
+                        loopStartDate = loopStartDate.AddDays(1);
                     }
                     else
                     {
-                        table.AddCell(("-").AttendanceFont());
-                        startDate2 = startDate2.AddDays(1);
+                        table.AddCell(new AttendanceCell("-"));
+                        loopStartDate = loopStartDate.AddDays(1);
                     }
                 }
             }
 
+            #region Packing and sending response
             document.Add(table);
             document.Close();
             writer.Close();
@@ -114,8 +144,9 @@ namespace Attendance.Controllers
             };
             response.Content.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Pdf);
             return response;
+            #endregion
         }
-        
+
         public class AttendanceModel
         {
             public int iStatusCode { get; set; }
@@ -138,6 +169,7 @@ namespace Attendance.Controllers
         public class InTimeAttendanceModel
         {
             public DateTime InTime { get; set; }
+            public DateTime OutTime { get; set; }
             public string Attendance { get; set; }
         }
 
@@ -147,13 +179,37 @@ namespace Attendance.Controllers
             public DateTime endDate { get; set; }
             public string name { get; set; }
         }
+
+        public class AttendanceCell : PdfPCell
+        {
+            public AttendanceCell(string text)
+            {
+                HorizontalAlignment = 1;
+                Phrase = new Phrase(text.AttendanceCellFont());
+            }
+        }
+
+        public class AttendanceHeaderCell : PdfPCell
+        {
+            public AttendanceHeaderCell(string text, int colspan)
+            {
+                HorizontalAlignment = 1;
+                Colspan = colspan;
+                Phrase = new Phrase(text.AttendanceHeaderCellFont());
+            }
+        }
     }
-    
+
     public static class Helper
     {
-        public static Phrase AttendanceFont(this string text)
+        public static Phrase AttendanceCellFont(this string text)
         {
             return new Phrase(text, FontFactory.GetFont(FontFactory.HELVETICA, 5, Font.NORMAL));
+        }
+
+        public static Phrase AttendanceHeaderCellFont(this string text)
+        {
+            return new Phrase(text, FontFactory.GetFont(FontFactory.HELVETICA, 15, Font.NORMAL));
         }
 
         public static DateTime StartofDay(this DateTime date)
