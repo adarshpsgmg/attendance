@@ -81,53 +81,49 @@ namespace Attendance.Controllers
             document.Open();
             #endregion
 
-            var table = new PdfPTable(days + 1);
+            var outerTable = new PdfPTable(2);
+            outerTable.SetWidths(new float[] { 10, 10 });
+            outerTable.AddCell(new AttendanceHeaderCell("AttendanceReport\n", 2));
 
-            table.AddCell(new AttendanceHeaderCell("AttendanceReport\n", days + 1));
+            var nameTable = new PdfPTable(1);
+
+            nameTable.AddCell(new AttendanceCell("Employee Name"));
+
+            foreach (var employee in groupedEmployeeData)
+            {
+                nameTable.AddCell(new AttendanceCell(employee.EmployeeName));
+            }
+
+            var dataTable = new PdfPTable(days);
 
             var loopStartDate = fromDate;
-            for (int i = 0; i < days + 1; i++)
+            for (int i = 0; i < days; i++)
             {
-                if (i == 0)
-                    table.AddCell(new AttendanceCell("Employee Name"));
-                else
-                {
-                    table.AddCell(new AttendanceCell(loopStartDate.ToString("MM/dd/yyyy")));
-                    loopStartDate = loopStartDate.AddDays(1);
-                }
+                dataTable.AddCell(new AttendanceCell(loopStartDate.ToString("MM/dd/yyyy")));
+                loopStartDate = loopStartDate.AddDays(1);
             }
 
             foreach (var employee in groupedEmployeeData)
             {
                 loopStartDate = fromDate;
-                for (int i = 0; i < days + 1; i++)
+                for (int i = 0; i < days; i++)
                 {
-                    if (i == 0)
-                    {
-                        table.AddCell(new AttendanceCell(employee.EmployeeName));
-                    }
-                    else if (employee.EmployeeAttendance.Any(x => x.InTime.StartofDay() == loopStartDate))
-                    {
-                        var tEmployee = employee.EmployeeAttendance.FirstOrDefault(x => x.InTime.StartofDay() == loopStartDate);
-                        table.AddCell(new AttendanceCell(
-                            (
-                            (tEmployee.OutTime == DateTime.MinValue ? " Missed" : tEmployee.Attendance)
-                            + " \n" + tEmployee.InTime.ToString("HH:mm tt")
-                            + " -" + (tEmployee.OutTime == DateTime.MinValue ? " Missed" : tEmployee.OutTime.ToString("HH:mm tt"))
-                            )
-                        ));
-                        loopStartDate = loopStartDate.AddDays(1);
-                    }
-                    else
-                    {
-                        table.AddCell(new AttendanceCell("-"));
-                        loopStartDate = loopStartDate.AddDays(1);
-                    }
+                    var tEmployee = employee.EmployeeAttendance.FirstOrDefault(x => x.InTime.StartofDay() == loopStartDate);
+                    dataTable.AddCell(new AttendanceCell(
+                        (
+                        tEmployee.InTime.ToString("HH:mm tt")
+                        + " - " + (tEmployee.OutTime == DateTime.MinValue ? " Missed" : tEmployee.OutTime.ToString("HH:mm tt"))
+                        )
+                    ));
+                    loopStartDate = loopStartDate.AddDays(1);
                 }
             }
 
+            outerTable.AddCell(nameTable);
+            outerTable.AddCell(dataTable);
+
             #region Packing and sending response
-            document.Add(table);
+            document.Add(outerTable);
             document.Close();
             writer.Close();
             var bytes = stream.ToArray();
