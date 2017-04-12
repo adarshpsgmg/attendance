@@ -83,7 +83,7 @@ namespace Attendance.Controllers
 
             var outerTable = new PdfPTable(2);
             outerTable.SetWidths(new float[] { 10, 10 });
-            outerTable.AddCell(new AttendanceHeaderCell("AttendanceReport\n", 2));
+            //outerTable.AddCell(new AttendanceHeaderCell("AttendanceReport\n", 2));
 
             var nameTable = new PdfPTable(1);
 
@@ -111,8 +111,9 @@ namespace Attendance.Controllers
                     var tEmployee = employee.EmployeeAttendance.FirstOrDefault(x => x.InTime.StartofDay() == loopStartDate);
                     dataTable.AddCell(new AttendanceCell(
                         (
-                        tEmployee.InTime.ToString("HH:mm tt")
-                        + " - " + (tEmployee.OutTime == DateTime.MinValue ? " Missed" : tEmployee.OutTime.ToString("HH:mm tt"))
+                        tEmployee.Attendance
+                        //tEmployee.InTime.ToString("HH:mm tt")
+                        //+ " - " + (tEmployee.OutTime == DateTime.MinValue ? " Missed" : tEmployee.OutTime.ToString("HH:mm tt"))
                         )
                     ));
                     loopStartDate = loopStartDate.AddDays(1);
