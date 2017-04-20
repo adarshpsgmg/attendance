@@ -27,32 +27,8 @@ namespace Attendance.Controllers
             var toDate = request.endDate.StartofDay();
             var toDateString = toDate.ToString("MM/dd/yyyy");
             var days = ((toDate - fromDate).Days + 1);
-
-            #region Calling API and fetching data
-            var client = new HttpClient();
-            var clientResponse = await client.GetAsync(
-                "http://192.168.2.180:4373/api/sgTimeCard/Timecard?iEmpId=&dtFrom=" + fromDateString + "&dtTo=" + toDateString);
-            clientResponse.EnsureSuccessStatusCode();
-            var result = await clientResponse.Content.ReadAsStringAsync();
-            var serializer = new JavaScriptSerializer();
-            var attendanceModel = serializer.Deserialize<AttendanceModel>(result);
-            #endregion
-
-            #region Tester
-            //var a = new DateTime();
-            //foreach(var item in attendanceModel.sResult)
-            //{
-            //    try
-            //    {
-            //        a = DateTime.Parse(item.InTime);
-            //        a = DateTime.Parse(item.OutTime);
-            //    }
-            //    catch(Exception ex)
-            //    {
-
-            //    }
-            //} 
-            #endregion
+            
+            var attendanceModel = await GetAttendanceData(fromDateString, toDateString);
 
             #region Structuring data
             var groupedEmployeeData = (from item in attendanceModel.sResult
@@ -143,7 +119,86 @@ namespace Attendance.Controllers
             #endregion
         }
 
-        public class AttendanceModel
+        [Route("get-all-detailed")]
+        [EnableCors(origins: "http://localhost:3000", headers: "*", methods: "*")]
+        [HttpPost]
+        public async Task<HttpResponseMessage> GetAllDetailedAsync(RequestModel request)
+        {
+            var fromDate = request.startDate.StartofDay();
+            var fromDateString = fromDate.ToString("MM/dd/yyyy");
+            var toDate = request.endDate.StartofDay();
+            var toDateString = toDate.ToString("MM/dd/yyyy");
+            var days = ((toDate - fromDate).Days + 1);
+
+            var attendanceModel = await GetAttendanceData(fromDateString, toDateString);
+
+            #region Creating write stream and document
+            var stream = new MemoryStream();
+            var document = new Document(PageSize.A4, 10f, 10f, 10f, 10f);
+            var writer = PdfWriter.GetInstance(document, stream);
+            writer.CloseStream = false;
+
+            document.SetPageSize(PageSize.A4.Rotate());
+            document.Open();
+            #endregion
+
+            var dataTable = new PdfPTable(8);
+            dataTable.AddCell(new AttendanceCell("Employee ID"));
+            dataTable.AddCell(new AttendanceCell("Employee Name"));
+            dataTable.AddCell(new AttendanceCell("Working Hours"));
+            dataTable.AddCell(new AttendanceCell("In Time"));
+            dataTable.AddCell(new AttendanceCell("Out Time"));
+            dataTable.AddCell(new AttendanceCell("Time Duration"));
+            dataTable.AddCell(new AttendanceCell("Work Duration"));
+            dataTable.AddCell(new AttendanceCell("Day Type"));
+
+            var employeeDetails = attendanceModel.sResult.OrderBy(x => x.cmpId).ToList();
+
+            foreach (var employeeDetail in employeeDetails)
+            {
+                dataTable.AddCell(new AttendanceCell(employeeDetail.cmpId));
+                dataTable.AddCell(new AttendanceCell(employeeDetail.empName));
+                dataTable.AddCell(new AttendanceCell(employeeDetail.WorkingHours));
+                dataTable.AddCell(new AttendanceCell(employeeDetail.InTime));
+                dataTable.AddCell(new AttendanceCell(employeeDetail.OutTime));
+                dataTable.AddCell(new AttendanceCell(employeeDetail.TimeDuration));
+                dataTable.AddCell(new AttendanceCell(employeeDetail.wrkDuration));
+                dataTable.AddCell(new AttendanceCell(employeeDetail.DayType));
+            }
+
+            #region Packing and sending response
+            document.Add(dataTable);
+            document.Close();
+            writer.Close();
+            var bytes = stream.ToArray();
+            var metaDataContent = new ByteArrayContent(bytes);
+
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = metaDataContent
+            };
+            response.Content.Headers.ContentDisposition = new ContentDispositionHeaderValue("inline")
+            {
+                FileName = "Attendance.pdf"
+            };
+            response.Content.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Pdf);
+            return response;
+            #endregion
+        }
+
+        private async Task<AttendanceAPIModel> GetAttendanceData(string fromDateString, string toDateString)
+        {
+            var client = new HttpClient();
+            var clientResponse = await client.GetAsync(
+                "http://192.168.2.180:4373/api/sgTimeCard/Timecard?iEmpId=&dtFrom=" + fromDateString + "&dtTo=" + toDateString);
+            clientResponse.EnsureSuccessStatusCode();
+            var result = await clientResponse.Content.ReadAsStringAsync();
+            var serializer = new JavaScriptSerializer();
+            var attendanceModel = serializer.Deserialize<AttendanceAPIModel>(result);
+            return attendanceModel;
+        }
+
+        public class AttendanceAPIModel
         {
             public int iStatusCode { get; set; }
             public string sMessage { get; set; }
