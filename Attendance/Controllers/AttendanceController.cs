@@ -79,21 +79,44 @@ namespace Attendance.Controllers
                 loopStartDate = loopStartDate.AddDays(1);
             }
 
-            foreach (var employee in groupedEmployeeData)
+            var employeeName = string.Empty;
+            try
             {
-                loopStartDate = fromDate;
-                for (int i = 0; i < days; i++)
+                foreach (var employee in groupedEmployeeData)
                 {
-                    var tEmployee = employee.EmployeeAttendance.FirstOrDefault(x => x.InTime.StartofDay() == loopStartDate);
-                    dataTable.AddCell(new AttendanceCell(
-                        (
-                        tEmployee.Attendance
-                        //tEmployee.InTime.ToString("HH:mm tt")
-                        //+ " - " + (tEmployee.OutTime == DateTime.MinValue ? " Missed" : tEmployee.OutTime.ToString("HH:mm tt"))
-                        )
-                    ));
-                    loopStartDate = loopStartDate.AddDays(1);
+                    if (string.Equals(employee.EmployeeName, "Mr Aaja Sebastian  "))
+                    { 
+
+                    }
+                    loopStartDate = fromDate;
+                    for (int i = 0; i < days; i++)
+                    {
+                        employeeName = employee.EmployeeName;
+                        var tEmployee = employee.EmployeeAttendance.FirstOrDefault(x => x.InTime.StartofDay() == loopStartDate);
+                        if (tEmployee != null)
+                        {
+                            dataTable.AddCell(new AttendanceCell(
+                                (
+                                    tEmployee.Attendance
+                                )
+                            ));
+                        }
+                        else
+                        {
+                            dataTable.AddCell(new AttendanceCell(
+                                (
+                                    "-"
+                                )
+                            ));
+                        }
+                        
+                        loopStartDate = loopStartDate.AddDays(1);
+                    }
                 }
+            }
+            catch(Exception ex)
+            {
+
             }
 
             outerTable.AddCell(nameTable);
