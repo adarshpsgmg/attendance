@@ -85,13 +85,14 @@ namespace Attendance.Controllers
                 for (int i = 0; i < days; i++)
                 {
                     var tEmployee = employee.EmployeeAttendance.FirstOrDefault(x => x.InTime.StartofDay() == loopStartDate);
-                    dataTable.AddCell(new AttendanceCell(
-                        (
-                        tEmployee.Attendance
-                        //tEmployee.InTime.ToString("HH:mm tt")
-                        //+ " - " + (tEmployee.OutTime == DateTime.MinValue ? " Missed" : tEmployee.OutTime.ToString("HH:mm tt"))
-                        )
-                    ));
+                    if (tEmployee == null)
+                    {
+                        dataTable.AddCell(new AttendanceCell(("-")));
+                    }
+                    else
+                    {
+                        dataTable.AddCell(new AttendanceCell((tEmployee.Attendance)));
+                    }
                     loopStartDate = loopStartDate.AddDays(1);
                 }
             }
