@@ -33,10 +33,11 @@ namespace Attendance.Controllers
             #region Structuring data
             var groupedEmployeeData = (from item in attendanceModel.sResult
                                        where string.IsNullOrEmpty(request.name) ? true : item.empName.Contains(request.name)
-                                       group item by item.empName into groupedItem
+                                       group item by new { item.empName, item.cmpId } into groupedItem
                                        select new
                                        {
-                                           EmployeeName = groupedItem.Key,
+                                           EmployeeName = groupedItem.Key.empName,
+                                           EmployeeID = groupedItem.Key.cmpId,
                                            EmployeeData = groupedItem.ToList(),
                                            EmployeeAttendance = groupedItem.Select(x => new InTimeAttendanceModel
                                            {
@@ -67,7 +68,7 @@ namespace Attendance.Controllers
 
             foreach (var employee in groupedEmployeeData)
             {
-                nameTable.AddCell(new AttendanceCell(employee.EmployeeName));
+                nameTable.AddCell(new AttendanceCell(employee.EmployeeName + "(" + employee.EmployeeID + ")"));
             }
 
             var dataTable = new PdfPTable(days);
