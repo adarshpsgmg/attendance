@@ -60,15 +60,16 @@ namespace Attendance.Controllers
 
             var outerTable = new PdfPTable(2);
             outerTable.SetWidths(new float[] { 10, 10 });
-            //outerTable.AddCell(new AttendanceHeaderCell("AttendanceReport\n", 2));
 
-            var nameTable = new PdfPTable(1);
+            var nameTable = new PdfPTable(2);
 
             nameTable.AddCell(new AttendanceCell("Employee Name"));
+            nameTable.AddCell(new AttendanceCell("Employee ID"));
 
             foreach (var employee in groupedEmployeeData)
             {
-                nameTable.AddCell(new AttendanceCell(employee.EmployeeName + "(" + employee.EmployeeID + ")"));
+                nameTable.AddCell(new AttendanceCell(employee.EmployeeName));
+                nameTable.AddCell(new AttendanceCell(employee.EmployeeID));
             }
 
             var dataTable = new PdfPTable(days);
