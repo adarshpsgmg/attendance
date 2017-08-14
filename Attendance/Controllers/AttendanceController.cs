@@ -1,7 +1,9 @@
-﻿using iTextSharp.text;
+﻿using Attendance.Helper;
+using Attendance.Models;
+using Attendance.Models.Print_Models;
+using iTextSharp.text;
 using iTextSharp.text.pdf;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -15,10 +17,19 @@ using System.Web.Script.Serialization;
 
 namespace Attendance.Controllers
 {
+    /// <summary>
+    /// Attendance controller.
+    /// </summary>
+    /// <seealso cref="System.Web.Http.ApiController" />
     public class AttendanceController : ApiController
     {
+        /// <summary>
+        /// Gets all asynchronous.
+        /// </summary>
+        /// <param name="request">The request.</param>
+        /// <returns></returns>
         [Route("get-all")]
-        [EnableCors(origins: "http://localhost:3000", headers: "*", methods: "*")]
+        [EnableCors(origins: "http://localhost:7000", headers: "*", methods: "*")]
         [HttpPost]
         public async Task<HttpResponseMessage> GetAllAsync(RequestModel request)
         {
@@ -122,8 +133,13 @@ namespace Attendance.Controllers
             #endregion
         }
 
+        /// <summary>
+        /// Gets all detailed asynchronous.
+        /// </summary>
+        /// <param name="request">The request.</param>
+        /// <returns></returns>
         [Route("get-all-detailed")]
-        [EnableCors(origins: "http://localhost:3000", headers: "*", methods: "*")]
+        [EnableCors(origins: "http://localhost:7000", headers: "*", methods: "*")]
         [HttpPost]
         public async Task<HttpResponseMessage> GetAllDetailedAsync(RequestModel request)
         {
@@ -131,7 +147,6 @@ namespace Attendance.Controllers
             var fromDateString = fromDate.ToString("MM/dd/yyyy");
             var toDate = request.endDate.StartofDay();
             var toDateString = toDate.ToString("MM/dd/yyyy");
-            var days = ((toDate - fromDate).Days + 1);
 
             var attendanceModel = await GetAttendanceData(fromDateString, toDateString);
 
@@ -189,86 +204,22 @@ namespace Attendance.Controllers
             #endregion
         }
 
-        private async Task<AttendanceAPIModel> GetAttendanceData(string fromDateString, string toDateString)
+        /// <summary>
+        /// Gets the attendance data.
+        /// </summary>
+        /// <param name="fromDateString">From date string.</param>
+        /// <param name="toDateString">To date string.</param>
+        /// <returns></returns>
+        private async Task<AttendanceApiModel> GetAttendanceData(string fromDateString, string toDateString)
         {
             var client = new HttpClient();
-            var clientResponse = await client.GetAsync(
-                "http://192.168.2.180:4373/api/sgTimeCard/Timecard?iEmpId=&dtFrom=" + fromDateString + "&dtTo=" + toDateString);
+            var clientResponse = await client.GetAsync("http://192.168.2.180:4373/api/sgTimeCard/Timecard?iEmpId=&dtFrom=" + 
+                fromDateString + "&dtTo=" + toDateString);
             clientResponse.EnsureSuccessStatusCode();
             var result = await clientResponse.Content.ReadAsStringAsync();
             var serializer = new JavaScriptSerializer();
-            var attendanceModel = serializer.Deserialize<AttendanceAPIModel>(result);
+            var attendanceModel = serializer.Deserialize<AttendanceApiModel>(result);
             return attendanceModel;
-        }
-
-        public class AttendanceAPIModel
-        {
-            public int iStatusCode { get; set; }
-            public string sMessage { get; set; }
-            public List<AttendanceDetailModel> sResult { get; set; }
-        }
-
-        public class AttendanceDetailModel
-        {
-            public string cmpId { get; set; }
-            public string empName { get; set; }
-            public string WorkingHours { get; set; }
-            public string InTime { get; set; }
-            public string OutTime { get; set; }
-            public string TimeDuration { get; set; }
-            public string wrkDuration { get; set; }
-            public string DayType { get; set; }
-        }
-
-        public class InTimeAttendanceModel
-        {
-            public DateTime InTime { get; set; }
-            public DateTime OutTime { get; set; }
-            public string Attendance { get; set; }
-        }
-
-        public class RequestModel
-        {
-            public DateTime startDate { get; set; }
-            public DateTime endDate { get; set; }
-            public string name { get; set; }
-        }
-
-        public class AttendanceCell : PdfPCell
-        {
-            public AttendanceCell(string text)
-            {
-                HorizontalAlignment = 1;
-                Phrase = new Phrase(text.AttendanceCellFont());
-            }
-        }
-
-        public class AttendanceHeaderCell : PdfPCell
-        {
-            public AttendanceHeaderCell(string text, int colspan)
-            {
-                HorizontalAlignment = 1;
-                Colspan = colspan;
-                Phrase = new Phrase(text.AttendanceHeaderCellFont());
-            }
-        }
-    }
-
-    public static class Helper
-    {
-        public static Phrase AttendanceCellFont(this string text)
-        {
-            return new Phrase(text, FontFactory.GetFont(FontFactory.HELVETICA, 5, Font.NORMAL));
-        }
-
-        public static Phrase AttendanceHeaderCellFont(this string text)
-        {
-            return new Phrase(text, FontFactory.GetFont(FontFactory.HELVETICA, 15, Font.NORMAL));
-        }
-
-        public static DateTime StartofDay(this DateTime date)
-        {
-            return new DateTime(date.Year, date.Month, date.Day);
         }
     }
 }

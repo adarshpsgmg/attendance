@@ -98,6 +98,13 @@
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
+    <Compile Include="Helper\Helper.cs" />
+    <Compile Include="Models\AttendanceAPIModel.cs" />
+    <Compile Include="Models\AttendanceDetailModel.cs" />
+    <Compile Include="Models\InTimeAttendanceModel.cs" />
+    <Compile Include="Models\Print Models\AttendanceCell.cs" />
+    <Compile Include="Models\Print Models\AttendanceHeaderCell.cs" />
+    <Compile Include="Models\RequestModel.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
