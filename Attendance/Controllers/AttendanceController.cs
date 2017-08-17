@@ -30,12 +30,12 @@ namespace Attendance.Controllers
         /// <returns></returns>
         [Route("get-all")]
         [EnableCors(origins: "http://localhost:7000", headers: "*", methods: "*")]
-        [HttpPost]
-        public async Task<HttpResponseMessage> GetAllAsync(RequestModel request)
+        [HttpGet]
+        public async Task<HttpResponseMessage> GetAllAsync(DateTime startDate, DateTime endDate, string name)
         {
-            var fromDate = request.startDate.StartofDay();
+            var fromDate = startDate.StartofDay();
             var fromDateString = fromDate.ToString("MM/dd/yyyy");
-            var toDate = request.endDate.StartofDay();
+            var toDate = endDate.StartofDay();
             var toDateString = toDate.ToString("MM/dd/yyyy");
             var days = ((toDate - fromDate).Days + 1);
             
@@ -43,7 +43,7 @@ namespace Attendance.Controllers
 
             #region Structuring data
             var groupedEmployeeData = (from item in attendanceModel.sResult
-                                       where string.IsNullOrEmpty(request.name) ? true : item.empName.Contains(request.name)
+                                       where string.IsNullOrEmpty(name) ? true : item.empName.Contains(name)
                                        group item by new { item.empName, item.cmpId } into groupedItem
                                        select new
                                        {
@@ -117,12 +117,10 @@ namespace Attendance.Controllers
             document.Add(outerTable);
             document.Close();
             writer.Close();
-            var bytes = stream.ToArray();
-            var metaDataContent = new ByteArrayContent(bytes);
-
+            stream.Seek(0, SeekOrigin.Begin);
             var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = metaDataContent
+                Content = new StreamContent(stream)
             };
             response.Content.Headers.ContentDisposition = new ContentDispositionHeaderValue("inline")
             {
@@ -140,12 +138,12 @@ namespace Attendance.Controllers
         /// <returns></returns>
         [Route("get-all-detailed")]
         [EnableCors(origins: "http://localhost:7000", headers: "*", methods: "*")]
-        [HttpPost]
-        public async Task<HttpResponseMessage> GetAllDetailedAsync(RequestModel request)
+        [HttpGet]
+        public async Task<HttpResponseMessage> GetAllDetailedAsync(DateTime startDate, DateTime endDate, string name)
         {
-            var fromDate = request.startDate.StartofDay();
+            var fromDate = startDate.StartofDay();
             var fromDateString = fromDate.ToString("MM/dd/yyyy");
-            var toDate = request.endDate.StartofDay();
+            var toDate = endDate.StartofDay();
             var toDateString = toDate.ToString("MM/dd/yyyy");
 
             var attendanceModel = await GetAttendanceData(fromDateString, toDateString);
@@ -188,12 +186,10 @@ namespace Attendance.Controllers
             document.Add(dataTable);
             document.Close();
             writer.Close();
-            var bytes = stream.ToArray();
-            var metaDataContent = new ByteArrayContent(bytes);
-
+            stream.Seek(0, SeekOrigin.Begin);
             var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = metaDataContent
+                Content = new StreamContent(stream)
             };
             response.Content.Headers.ContentDisposition = new ContentDispositionHeaderValue("inline")
             {
